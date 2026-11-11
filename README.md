@@ -570,6 +570,14 @@ console.log("package name: %s", JSON.parse(data).name);
 
 Learn more about [Media type formats](https://docs.github.com/en/rest/overview/media-types).
 
+The `diff_url` and `patch_url` properties returned by GitHub, for example on pull request objects or in webhook payloads, point to `github.com`. Those URLs are intended for the web UI and do not support token authentication, so requesting them for a private repository returns a `404`. Passing them to `octokit.request` is supported: Octokit rewrites them to the equivalent REST API request with the `diff` or `patch` media type, which works for private repositories as well.
+
+```js
+// both work for public and private repositories
+await octokit.request({ method: "GET", url: pull_request.diff_url });
+await octokit.request({ method: "GET", url: pull_request.patch_url });
+```
+
 #### Request error handling
 
 **Standalone module:** [`@octokit/request-error`](https://github.com/octokit/request-error.js/#readme)

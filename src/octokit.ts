@@ -5,6 +5,7 @@ import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { retry } from "@octokit/plugin-retry";
 import { throttling } from "@octokit/plugin-throttling";
 
+import { pullRequestDiff } from "./pull-request-diff.js";
 import { VERSION } from "./version.js";
 import type { EndpointDefaults } from "@octokit/types";
 
@@ -20,6 +21,7 @@ export const Octokit = OctokitCore.plugin(
   paginateGraphQL,
   retry,
   throttling,
+  pullRequestDiff,
 ).defaults({
   userAgent: `octokit.js/${VERSION}`,
   throttle: {
