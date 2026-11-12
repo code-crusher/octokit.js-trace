@@ -146,6 +146,54 @@ describe("App", () => {
     expect(mock.isDone()).toBe(true);
   });
 
+  test("app.octokit.request() sends public endpoint requests unauthenticated", async () => {
+    mock
+      .get("/users", undefined, {
+        badheaders: ["authorization"],
+      })
+      .reply(200, [{ login: "octocat" }]);
+
+    const { data } = await app.octokit.request("GET /users");
+
+    expect(data).toEqual([{ login: "octocat" }]);
+    expect(mock.isDone()).toBe(true);
+  });
+
+  test("app.octokit.request() still authenticates as app where required", async () => {
+    mock
+      .get("/app", undefined, {
+        reqheaders: { authorization: `bearer ${BEARER}` },
+      })
+      .reply(200, { slug: "octokit" });
+
+    const { data } = await app.octokit.request("GET /app");
+
+    expect(data).toEqual({ slug: "octokit" });
+    expect(mock.isDone()).toBe(true);
+  });
+
+  test("app.octokit.request() does not swallow unrelated errors", async () => {
+    mock.get("/users").reply(404, { message: "Not Found" });
+
+    await expect(app.octokit.request("GET /users")).rejects.toThrow(
+      "Not Found",
+    );
+
+    expect(mock.isDone()).toBe(true);
+  });
+
+  test("app.octokit.request() does not swallow authentication errors", async () => {
+    const appWithInvalidPrivateKey = new App({
+      appId: APP_ID,
+      privateKey: "not a valid private key",
+      Octokit: Octokit.defaults({ throttle: { enabled: false } }),
+    });
+
+    await expect(
+      appWithInvalidPrivateKey.octokit.request("GET /app"),
+    ).rejects.toThrow();
+  });
+
   test("README example: createNodeMiddleware(app)", async () => {
     expect.assertions(3);
 

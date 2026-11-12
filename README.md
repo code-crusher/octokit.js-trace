@@ -742,6 +742,12 @@ Example: Get an `octokit` instance authenticated as an installation
 const octokit = await app.getInstallationOctokit(123);
 ```
 
+Requests sent with `app.octokit` are authenticated as the app for endpoints that require app authentication. Requests to public endpoints, such as `GET /users`, are sent without authentication when the app has no installation to authenticate as.
+
+```js
+const { data: users } = await app.octokit.request("GET /users");
+```
+
 Learn more about [apps](https://docs.github.com/apps).
 
 ### Webhooks
