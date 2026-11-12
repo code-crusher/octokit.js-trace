@@ -29,6 +29,7 @@ The `octokit` package integrates the three main Octokit libraries
     - [GraphQL API queries](#graphql-api-queries)
       - [Pagination](#pagination-1)
       - [Schema previews](#schema-previews)
+    - [File operations](#file-operations)
   - [App client](#app-client)
     - [GitHub App](#github-app)
     - [Webhooks](#webhooks)
@@ -700,6 +701,50 @@ await octokit.graphql(
 ```
 
 Learn more about [GitHub's GraphQL schema previews](https://docs.github.com/en/graphql/overview/schema-previews)
+
+### File operations
+
+GitHub's REST API has no endpoint to rename or delete a file or directory. `Octokit` implements these operations on top of the [Git database API](https://docs.github.com/rest/git), so that each one results in a single commit.
+
+```js
+// rename a file, like `git mv README.md README.markdown`
+await octokit.renameFile({
+  owner: "octokit",
+  repo: "octokit.js",
+  path: "README.md",
+  newPath: "README.markdown",
+  message: "Rename README.md to README.markdown",
+});
+
+// rename a directory and everything in it, like `git mv docs documentation`
+await octokit.renameDirectory({
+  owner: "octokit",
+  repo: "octokit.js",
+  path: "docs",
+  newPath: "documentation",
+  message: "Rename docs/ to documentation/",
+});
+
+// delete a file, like `git rm README.md`
+await octokit.deleteFile({
+  owner: "octokit",
+  repo: "octokit.js",
+  path: "README.md",
+  message: "Delete README.md",
+});
+
+// delete a directory and everything in it, like `git rm -r docs`
+await octokit.deleteDirectory({
+  owner: "octokit",
+  repo: "octokit.js",
+  path: "docs",
+  message: "Delete docs/",
+});
+```
+
+All four methods accept the same options as each other, plus `newPath` for the rename methods: `owner`, `repo`, `path`, `message`, and optionally `branch`, `author`, and `committer`. The branch defaults to the repository's default branch.
+
+The operations are also available as standalone functions that accept an `Octokit` instance as their first argument, e.g. `composeRenameFile(octokit, options)`.
 
 ## App client
 
