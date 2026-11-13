@@ -25,6 +25,7 @@ The `octokit` package integrates the three main Octokit libraries
       - [`octokit.request()`](#octokitrequest)
       - [Pagination](#pagination)
       - [Media Type formats](#media-type-formats)
+      - [Upload multiple files](#upload-multiple-files)
       - [Request error handling](#request-error-handling)
     - [GraphQL API queries](#graphql-api-queries)
       - [Pagination](#pagination-1)
@@ -569,6 +570,32 @@ console.log("package name: %s", JSON.parse(data).name);
 ```
 
 Learn more about [Media type formats](https://docs.github.com/en/rest/overview/media-types).
+
+#### Upload multiple files
+
+GitHub's [create or update file contents](https://docs.github.com/rest/repos/contents#create-or-update-file-contents) endpoint creates or updates a single file per request. To upload multiple files — for example the contents of a folder — in a single commit, use `octokit.uploadFiles()`. It implements the [Git database API](https://docs.github.com/rest/git) flow for you: it creates a blob for every file, adds them to a tree, creates a commit, and updates the branch reference.
+
+```js
+await octokit.uploadFiles({
+  owner: "octocat",
+  repo: "hello-world",
+  message: "Add my project",
+  // keys are paths relative to the repository root
+  files: {
+    "my-project/index.js": 'console.log("hello");',
+    "my-project/README.md": "# My project",
+    // binary files can be uploaded by passing base64-encoded contents
+    "my-project/assets/logo.png": {
+      content: "iVBORw0KGgoAAAANSUhEUg...",
+      encoding: "base64",
+    },
+  },
+});
+```
+
+Nested directories are created as needed. The `branch` option defaults to the repository's default branch; `author` and `committer` can be set like for any other commit.
+
+The same functionality is available as a standalone function that accepts an `Octokit` instance as its first argument: `composeUploadFiles(octokit, options)`.
 
 #### Request error handling
 
