@@ -9,6 +9,7 @@ import { VERSION } from "./version.js";
 import type { EndpointDefaults } from "@octokit/types";
 
 export { RequestError } from "@octokit/request-error";
+export type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 export type {
   PageInfoForward,
   PageInfoBackward,

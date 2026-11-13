@@ -22,6 +22,7 @@ The `octokit` package integrates the three main Octokit libraries
       - [Fetch missing](#fetch-missing)
     - [REST API](#rest-api)
       - [`octokit.rest` endpoint methods](#octokitrest-endpoint-methods)
+      - [Typing endpoint parameters and responses](#typing-endpoint-parameters-and-responses)
       - [`octokit.request()`](#octokitrequest)
       - [Pagination](#pagination)
       - [Media Type formats](#media-type-formats)
@@ -496,6 +497,30 @@ await octokit.rest.issues.create({
 The `octokit.rest` endpoint methods are generated automatically from [GitHub's OpenAPI specification](https://github.com/github/rest-api-description/). We track operation ID and parameter name changes in order to implement deprecation warnings and reduce the frequency of breaking changes.
 
 Under the covers, every endpoint method is just `octokit.request` with defaults set, so it supports the same parameters as well as the `.endpoint()` API.
+
+#### Typing endpoint parameters and responses
+
+The `RestEndpointMethodTypes` type is exported so you can reference the parameters and response types of any REST API endpoint method, for example when passing a response payload to another function.
+
+```ts
+import type { RestEndpointMethodTypes } from "octokit";
+
+type Workflow =
+  RestEndpointMethodTypes["actions"]["listRepoWorkflows"]["response"]["data"]["workflows"][number];
+
+function doSomethingWithWorkflow(workflow: Workflow) {
+  console.log(workflow.id, workflow.name);
+}
+```
+
+The same type can be used for endpoint parameters.
+
+```ts
+import type { RestEndpointMethodTypes } from "octokit";
+
+type ListRepoWorkflowsParameters =
+  RestEndpointMethodTypes["actions"]["listRepoWorkflows"]["parameters"];
+```
 
 #### `octokit.request()`
 

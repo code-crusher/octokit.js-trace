@@ -3,6 +3,7 @@
 // ************************************************************
 
 import { App, OAuthApp, Octokit, RequestError } from "../src/index.ts";
+import type { RestEndpointMethodTypes } from "../src/index.ts";
 
 function expect<T>(what: T) {}
 
@@ -40,4 +41,26 @@ export async function OctokitTest() {
   });
 
   expect<RequestError>(error);
+}
+
+export async function RestEndpointMethodTypesTest() {
+  const octokit = new Octokit();
+
+  const { data } = await octokit.rest.actions.listRepoWorkflows({
+    owner: "",
+    repo: "",
+  });
+
+  type Workflow =
+    RestEndpointMethodTypes["actions"]["listRepoWorkflows"]["response"]["data"]["workflows"][number];
+
+  const workflow: Workflow = data.workflows[0];
+
+  expect<number>(workflow.id);
+  expect<string>(workflow.name);
+
+  type ListRepoWorkflowsParameters =
+    RestEndpointMethodTypes["actions"]["listRepoWorkflows"]["parameters"];
+
+  expect<ListRepoWorkflowsParameters>({ owner: "", repo: "" });
 }
