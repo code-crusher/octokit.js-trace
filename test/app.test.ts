@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { createServer } from "node:http";
 
 import nock from "nock";
@@ -211,6 +211,152 @@ describe("App", () => {
 
     expect(await response.text()).toEqual("ok\n");
     expect(response.status).toEqual(200);
+
+    server.close();
+  });
+
+  test("createNodeMiddleware(app) works without oauth options", async () => {
+    const appWithoutOAuth = new App({
+      appId: APP_ID,
+      privateKey: PRIVATE_KEY,
+      webhooks: { secret: WEBHOOK_SECRET },
+    });
+
+    const middleware = createNodeMiddleware(appWithoutOAuth);
+    const server = createServer(middleware).listen();
+
+    // @ts-expect-error - port is typed as undefined
+    const port = server.address().port;
+
+    // webhooks are handled as usual
+    const webhooksResponse = await fetch(
+      `http://localhost:${port}/api/github/webhooks`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      },
+    );
+    expect(webhooksResponse.status).toEqual(400);
+
+    // OAuth routes are not mounted, so they respond with a 404
+    const oauthResponse = await fetch(
+      `http://localhost:${port}/api/github/oauth/login`,
+    );
+    expect(oauthResponse.status).toEqual(404);
+    expect(await oauthResponse.json()).toEqual({
+      error: "Unknown route: GET /api/github/oauth/login",
+    });
+
+    // unknown routes below the path prefix respond with a 404
+    const unknownResponse = await fetch(
+      `http://localhost:${port}/api/github/unknown`,
+    );
+    expect(unknownResponse.status).toEqual(404);
+
+    // requests outside of the path prefix are passed on to the next middleware
+    const next = vi.fn();
+    await expect(
+      middleware({ url: "/", method: "GET" }, {}, next),
+    ).resolves.toBe(false);
+    expect(next).toHaveBeenCalledOnce();
+
+    server.close();
+  });
+
+  test("createNodeMiddleware(app) works without webhooks options", async () => {
+    const appWithoutWebhooks = new App({
+      appId: APP_ID,
+      privateKey: PRIVATE_KEY,
+      oauth: {
+        clientId: CLIENT_ID,
+        clientSecret: CLIENT_SECRET,
+      },
+    });
+
+    const server = createServer(
+      createNodeMiddleware(appWithoutWebhooks),
+    ).listen();
+
+    // @ts-expect-error - port is typed as undefined
+    const port = server.address().port;
+
+    // OAuth routes are mounted
+    const oauthResponse = await fetch(
+      `http://localhost:${port}/api/github/oauth/login`,
+      { redirect: "manual" },
+    );
+    expect(oauthResponse.status).toEqual(302);
+    expect(oauthResponse.headers.get("location")).toContain(
+      `client_id=${CLIENT_ID}`,
+    );
+
+    // webhooks routes are not mounted, so they respond with a 404
+    const webhooksResponse = await fetch(
+      `http://localhost:${port}/api/github/webhooks`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      },
+    );
+    expect(webhooksResponse.status).toEqual(404);
+    expect(await webhooksResponse.json()).toEqual({
+      error: "Unknown route: POST /api/github/webhooks",
+    });
+
+    server.close();
+  });
+
+  test("createNodeMiddleware(app, { pathPrefix, log })", async () => {
+    const log = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const middleware = createNodeMiddleware(app, {
+      pathPrefix: "/custom/prefix",
+      log,
+    });
+    const server = createServer((request, response) =>
+      middleware(request, response, () => {
+        response.writeHead(404, { "content-type": "text/plain" });
+        response.end("not found\n");
+      }),
+    ).listen();
+
+    // @ts-expect-error - port is typed as undefined
+    const port = server.address().port;
+
+    const payload = JSON.stringify({ zen: "Keep it logically awesome." });
+    const response = await fetch(
+      `http://localhost:${port}/custom/prefix/webhooks`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-github-event": "ping",
+          "x-github-delivery": "1",
+          "x-hub-signature-256": await app.webhooks.sign(payload),
+        },
+        body: payload,
+      },
+    );
+    expect(response.status).toEqual(200);
+    expect(log.debug).toHaveBeenCalled();
+
+    // the default path prefix is not mounted
+    const defaultPrefixResponse = await fetch(
+      `http://localhost:${port}/api/github/webhooks`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      },
+    );
+    expect(defaultPrefixResponse.status).toEqual(404);
 
     server.close();
   });
