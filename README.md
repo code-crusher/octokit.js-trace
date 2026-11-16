@@ -497,6 +497,25 @@ The `octokit.rest` endpoint methods are generated automatically from [GitHub's O
 
 Under the covers, every endpoint method is just `octokit.request` with defaults set, so it supports the same parameters as well as the `.endpoint()` API.
 
+Example: [Generate release notes content for a release](https://docs.github.com/rest/releases/releases#generate-release-notes-content-for-a-release)
+
+```js
+const { data: notes } = await octokit.rest.repos.generateReleaseNotes({
+  owner: "octocat",
+  repo: "hello-world",
+  tag_name: "v1.0.0",
+  target_commitish: "main",
+});
+
+await octokit.rest.repos.createRelease({
+  owner: "octocat",
+  repo: "hello-world",
+  tag_name: "v1.0.0",
+  name: notes.name,
+  body: notes.body,
+});
+```
+
 #### `octokit.request()`
 
 You can call the GitHub REST API directly using `octokit.request`. The `request` API matches GitHub's REST API documentation 1:1 so anything you see there, you can call using `request`. See [`@octokit/request`](https://github.com/octokit/request.js#readme) for all the details.

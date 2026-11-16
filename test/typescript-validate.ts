@@ -31,6 +31,17 @@ export async function OctokitTest() {
   );
   expect<number>(issues[0].id);
 
+  const generatedReleaseNotes =
+    await installationOctokit.rest.repos.generateReleaseNotes({
+      owner: "",
+      repo: "",
+      tag_name: "v1.0.0",
+      target_commitish: "main",
+      previous_tag_name: "v0.9.0",
+    });
+  expect<string>(generatedReleaseNotes.data.name);
+  expect<string>(generatedReleaseNotes.data.body);
+
   const error = new RequestError("test", 123, {
     request: {
       method: "GET",
