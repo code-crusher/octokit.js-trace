@@ -920,6 +920,35 @@ expressApp.listen(3000, () => {
 });
 ```
 
+### Web Standard middleware
+
+For environments that are not compatible with Node.js, such as Cloudflare Workers or other edge runtimes, you can use `createWebMiddleware()` instead of `createNodeMiddleware()`. It is based on the Web Standard API [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) objects and works with both the `App` and the `OAuthApp` constructors.
+
+The middleware exposes the same routes as [`createNodeMiddleware()`](#app-server). It returns a `Response` if the request matches one of the exposed routes, or `undefined` otherwise, so the request can be handled by other middleware or a catch-all route.
+
+```js
+import { App, createWebMiddleware } from "octokit";
+
+const app = new App({
+  appId,
+  privateKey,
+  webhooks: { secret },
+  oauth: { clientId, clientSecret },
+});
+
+const middleware = createWebMiddleware(app);
+
+export default {
+  async fetch(request) {
+    const response = await middleware(request);
+    if (response) return response;
+
+    // if the middleware returned undefined, the route was not handled
+    return new Response("Not Found", { status: 404 });
+  },
+};
+```
+
 ### OAuth for browser apps
 
 You must not expose your app's client secret to the user, so you cannot use the `App` constructor. Instead, you have to create a server using the `App` constructor which exposes the `/api/github/oauth/*` routes, through which you can safely implement an OAuth login for apps running in a web browser.

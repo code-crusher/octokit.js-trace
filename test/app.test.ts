@@ -4,7 +4,13 @@ import { createServer } from "node:http";
 import nock from "nock";
 import MockDate from "mockdate";
 
-import { App, Octokit, createNodeMiddleware } from "../src/index.ts";
+import {
+  App,
+  OAuthApp,
+  Octokit,
+  createNodeMiddleware,
+  createWebMiddleware,
+} from "../src/index.ts";
 
 const APP_ID = 1;
 const PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
@@ -213,5 +219,184 @@ describe("App", () => {
     expect(response.status).toEqual(200);
 
     server.close();
+  });
+});
+
+describe("createWebMiddleware()", () => {
+  let app: InstanceType<typeof App>;
+  const mock = nock("https://api.github.com");
+
+  beforeEach(() => {
+    MockDate.set(0);
+    nock.cleanAll();
+
+    app = new App({
+      appId: APP_ID,
+      privateKey: PRIVATE_KEY,
+      oauth: {
+        clientId: CLIENT_ID,
+        clientSecret: CLIENT_SECRET,
+      },
+      webhooks: {
+        secret: WEBHOOK_SECRET,
+      },
+      Octokit: Octokit.defaults({
+        throttle: { enabled: false },
+      }),
+    });
+  });
+
+  test("returns undefined for routes outside the path prefix", async () => {
+    const middleware = createWebMiddleware(app);
+
+    const response = await middleware(
+      new Request("http://localhost/unknown-route"),
+    );
+
+    expect(response).toBeUndefined();
+  });
+
+  test("returns 404 for unknown routes within the path prefix", async () => {
+    const middleware = createWebMiddleware(app);
+
+    const response = await middleware(
+      new Request("http://localhost/api/github/unknown-route"),
+    );
+
+    expect(response?.status).toEqual(404);
+    expect(response?.headers.get("content-type")).toEqual("application/json");
+    await expect(response?.json()).resolves.toEqual({
+      error: "Unknown route: GET /api/github/unknown-route",
+    });
+  });
+
+  test("README example: createWebMiddleware(app) receiving a webhook event", async () => {
+    expect.assertions(3);
+
+    mock
+      .post("/app/installations/123/access_tokens", undefined, {
+        reqheaders: { authorization: `bearer ${BEARER}` },
+      })
+      .reply(200, {
+        token: "secret123",
+        expires_at: "1970-01-01T01:00:00.000Z",
+        permissions: {
+          metadata: "read",
+        },
+        repository_selection: "all",
+      });
+    mock
+      .post("/repos/octokit/octokit.js/issues/1/comments", {
+        body: "Hello, World!",
+      })
+      .reply(200, { body: 1 });
+
+    app.webhooks.on("issues.opened", async ({ octokit, payload }) => {
+      await octokit.rest.issues.createComment({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        issue_number: payload.issue.number,
+        body: "Hello, World!",
+      });
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    // Your app can now receive webhook events at `/api/github/webhooks`
+    const middleware = createWebMiddleware(app);
+
+    const issuePayload = JSON.stringify({
+      repository: {
+        owner: {
+          login: "octokit",
+        },
+        name: "octokit.js",
+      },
+      action: "opened",
+      installation: { id: 123 },
+      issue: { number: 1 },
+    });
+
+    const response = await middleware(
+      new Request("http://localhost/api/github/webhooks", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-github-event": "issues",
+          "x-github-delivery": "1",
+          "x-hub-signature-256": await app.webhooks.sign(issuePayload),
+        },
+        body: issuePayload,
+      }),
+    );
+
+    expect(response?.status).toEqual(200);
+    await expect(response?.text()).resolves.toEqual("ok\n");
+  });
+
+  test("exposes the OAuth routes", async () => {
+    const middleware = createWebMiddleware(app);
+
+    const response = await middleware(
+      new Request("http://localhost/api/github/oauth/login?state=state123", {
+        redirect: "manual",
+      }),
+    );
+
+    expect(response?.status).toEqual(302);
+
+    const location = new URL(response?.headers.get("location") ?? "");
+    expect(location.origin + location.pathname).toEqual(
+      "https://github.com/login/oauth/authorize",
+    );
+    expect(location.searchParams.get("client_id")).toEqual(CLIENT_ID);
+    expect(location.searchParams.get("state")).toEqual("state123");
+  });
+
+  test("uses a custom path prefix for the exposed routes", async () => {
+    const middleware = createWebMiddleware(app, { pathPrefix: "/custom" });
+
+    const response = await middleware(
+      new Request("http://localhost/custom/unknown-route"),
+    );
+
+    expect(response?.status).toEqual(404);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Unknown route: GET /custom/unknown-route",
+    });
+  });
+
+  test("works with an OAuthApp instance", async () => {
+    const oauthApp = new OAuthApp({
+      clientId: CLIENT_ID,
+      clientSecret: CLIENT_SECRET,
+    });
+
+    const middleware = createWebMiddleware(oauthApp);
+
+    // requests to the webhooks route are handled with a 404 response,
+    // because the OAuthApp has no webhooks configured
+    const webhooksResponse = await middleware(
+      new Request("http://localhost/api/github/webhooks"),
+    );
+
+    expect(webhooksResponse?.status).toEqual(404);
+    await expect(webhooksResponse?.json()).resolves.toEqual({
+      error: "Unknown route: GET /api/github/webhooks",
+    });
+
+    const response = await middleware(
+      new Request("http://localhost/api/github/oauth/login?state=state123", {
+        redirect: "manual",
+      }),
+    );
+
+    expect(response?.status).toEqual(302);
+
+    const location = new URL(response?.headers.get("location") ?? "");
+    expect(location.origin + location.pathname).toEqual(
+      "https://github.com/login/oauth/authorize",
+    );
+    expect(location.searchParams.get("state")).toEqual("state123");
   });
 });
