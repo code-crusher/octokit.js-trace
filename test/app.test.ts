@@ -214,4 +214,34 @@ describe("App", () => {
 
     server.close();
   });
+
+  // https://github.com/octokit/octokit.js/issues/2968
+  test("README example: OAuth-only `App`", async () => {
+    expect.assertions(3);
+
+    nock("https://github.com")
+      .post("/login/oauth/access_token", {
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        code: "code123",
+      })
+      .reply(200, {
+        access_token: "secret123",
+        scope: "",
+        token_type: "bearer",
+      });
+
+    const app = new App({
+      oauth: { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET },
+    });
+
+    app.oauth.on("token.created", async ({ token, octokit }) => {
+      expect(token).toEqual("secret123");
+      expect(octokit).toBeInstanceOf(Octokit);
+    });
+
+    const authentication = await app.oauth.createToken({ code: "code123" });
+
+    expect(authentication.authentication.token).toEqual("secret123");
+  });
 });

@@ -14,6 +14,22 @@ export async function OctokitTest() {
 
   expect<Octokit>(app.octokit);
 
+  // https://github.com/octokit/octokit.js/issues/2968
+  // `appId` and `privateKey` are not required when `App` is used for OAuth only
+  const oauthOnlyApp = new App({
+    oauth: {
+      clientId: "",
+      clientSecret: "",
+    },
+  });
+
+  expect<Octokit>(oauthOnlyApp.octokit);
+  expect<Octokit>(oauthOnlyApp.oauth.octokit);
+
+  oauthOnlyApp.oauth.on("token.created", ({ octokit }) => {
+    expect<Octokit>(octokit);
+  });
+
   const oauthApp = new OAuthApp({
     clientId: "",
     clientSecret: "",
