@@ -7,6 +7,34 @@ describe("Smoke tests", () => {
     expect(() => new Octokit()).not.toThrow();
   });
 
+  // Regression test for https://github.com/octokit/octokit.js/issues/2079:
+  // Instantiating Octokit must not schedule any timers, because in Deno (and
+  // other restricted runtimes) an active `setInterval` keeps the process
+  // from exiting. @octokit/plugin-throttling used to eagerly create
+  // Bottleneck instances (and their auto-cleanup intervals) in its factory.
+  it("constructor does not schedule any timers", () => {
+    const calls: string[] = [];
+    const originalSetInterval = globalThis.setInterval;
+    const originalSetTimeout = globalThis.setTimeout;
+    globalThis.setInterval = ((...args: Parameters<typeof setInterval>) => {
+      calls.push("setInterval");
+      return originalSetInterval(...args);
+    }) as typeof setInterval;
+    globalThis.setTimeout = ((...args: Parameters<typeof setTimeout>) => {
+      calls.push("setTimeout");
+      return originalSetTimeout(...args);
+    }) as typeof setTimeout;
+
+    try {
+      new Octokit();
+    } finally {
+      globalThis.setInterval = originalSetInterval;
+      globalThis.setTimeout = originalSetTimeout;
+    }
+
+    expect(calls).toEqual([]);
+  });
+
   it("Octokit can be used as a type", () => {
     let octokit: Octokit;
     octokit = new Octokit();
