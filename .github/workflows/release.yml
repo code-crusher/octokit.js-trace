@@ -8,6 +8,11 @@ name: Release
       - "*.x"
       - debug
 # These are recommended by the semantic-release docs: https://github.com/semantic-release/npm#npm-provenance
+# `id-token: write` enables OIDC-based authentication for npm provenance and
+# trusted publishing: https://docs.npmjs.com/trusted-publishers
+# No NPM_TOKEN secret is needed — the package is published using trusted publishing,
+# which requires a one-time configuration on npmjs.com linking this repository,
+# this workflow, and the `release` environment to the `octokit` package.
 permissions:
     contents: write # to be able to publish a GitHub release
     issues: write # to be able to comment on released issues
@@ -29,4 +34,3 @@ jobs:
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.OCTOKITBOT_NPM_TOKEN }}
