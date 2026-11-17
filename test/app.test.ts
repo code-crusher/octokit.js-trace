@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import nock from "nock";
 import MockDate from "mockdate";
 
-import { App, Octokit, createNodeMiddleware } from "../src/index.ts";
+import { App, OAuthApp, Octokit, createNodeMiddleware } from "../src/index.ts";
 
 const APP_ID = 1;
 const PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
@@ -211,6 +211,31 @@ describe("App", () => {
 
     expect(await response.text()).toEqual("ok\n");
     expect(response.status).toEqual(200);
+
+    server.close();
+  });
+
+  test("README example: createNodeMiddleware(oauthApp)", async () => {
+    const oauthApp = new OAuthApp({
+      clientId: CLIENT_ID,
+      clientSecret: CLIENT_SECRET,
+    });
+
+    const server = createServer(createNodeMiddleware(oauthApp)).listen();
+
+    // @ts-expect-error - port is typed as undefined
+    const port = server.address().port;
+
+    const response = await fetch(
+      `http://localhost:${port}/api/github/oauth/login`,
+      { redirect: "manual" },
+    );
+
+    // redirects to GitHub's authorization endpoint
+    expect(response.status).toEqual(302);
+    expect(response.headers.get("location")).toMatch(
+      /^https:\/\/github\.com\/login\/oauth\/authorize/,
+    );
 
     server.close();
   });

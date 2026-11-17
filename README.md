@@ -863,7 +863,7 @@ const app = new OAuthApp({
   defaultScopes: ["repo", "gist"],
 });
 
-app.oauth.on("token", async ({ token, octokit }) => {
+app.on("token", async ({ token, octokit }) => {
   await octokit.rest.gists.create({
     description: "I created this gist using Octokit!",
     public: true,
@@ -874,7 +874,7 @@ app.oauth.on("token", async ({ token, octokit }) => {
 });
 
 // Your app can receive the OAuth redirect at /api/github/oauth/callback
-// Users can initiate the OAuth web flow by opening /api/oauth/login
+// Users can initiate the OAuth web flow by opening /api/github/oauth/login
 createServer(createNodeMiddleware(app)).listen(3000);
 ```
 

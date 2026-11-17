@@ -2,7 +2,13 @@
 // THIS CODE IS NOT EXECUTED. IT IS JUST FOR TYPECHECKING
 // ************************************************************
 
-import { App, OAuthApp, Octokit, RequestError } from "../src/index.ts";
+import {
+  App,
+  OAuthApp,
+  Octokit,
+  RequestError,
+  createNodeMiddleware,
+} from "../src/index.ts";
 
 function expect<T>(what: T) {}
 
@@ -20,6 +26,19 @@ export async function OctokitTest() {
   });
 
   expect<Octokit>(oauthApp.octokit);
+
+  type NodeMiddleware = (
+    request: unknown,
+    response: unknown,
+    next?: () => void,
+  ) => Promise<boolean>;
+
+  expect<NodeMiddleware>(createNodeMiddleware(app));
+  expect<NodeMiddleware>(createNodeMiddleware(app, { pathPrefix: "/custom" }));
+  expect<NodeMiddleware>(createNodeMiddleware(oauthApp));
+  expect<NodeMiddleware>(
+    createNodeMiddleware(oauthApp, { pathPrefix: "/custom" }),
+  );
 
   const installationOctokit = await app.getInstallationOctokit(1);
   const issues = await installationOctokit.paginate(
