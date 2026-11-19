@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { Octokit, App, OAuthApp, RequestError } from "../src/index.ts";
+import {
+  Octokit,
+  App,
+  OAuthApp,
+  RequestError,
+  GraphqlResponseError,
+} from "../src/index.ts";
 
 describe("Smoke tests", () => {
   it("Octokit is a function", () => {
@@ -65,5 +71,33 @@ describe("Smoke tests", () => {
     });
 
     expect(error).toBeInstanceOf(RequestError);
+  });
+
+  it("GraphqlResponseError is exported and inherits from Error", () => {
+    const error = new GraphqlResponseError(
+      {
+        method: "POST",
+        url: "https://api.github.com/graphql",
+        query: "query { viewer { login } }",
+      },
+      {},
+      {
+        data: null,
+        errors: [
+          {
+            type: "SERVICE_UNAVAILABLE",
+            message: "Service unavailable",
+            path: ["viewer"],
+            extensions: {},
+            locations: [{ line: 1, column: 1 }],
+          },
+        ],
+      },
+    );
+
+    expect(error).toBeInstanceOf(GraphqlResponseError);
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe("GraphqlResponseError");
+    expect(error.errors[0].message).toBe("Service unavailable");
   });
 });

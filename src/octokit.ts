@@ -4,11 +4,13 @@ import { paginateGraphQL } from "@octokit/plugin-paginate-graphql";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { retry } from "@octokit/plugin-retry";
 import { throttling } from "@octokit/plugin-throttling";
+import { GraphqlResponseError } from "@octokit/graphql";
 
 import { VERSION } from "./version.js";
 import type { EndpointDefaults } from "@octokit/types";
 
 export { RequestError } from "@octokit/request-error";
+export { GraphqlResponseError };
 export type {
   PageInfoForward,
   PageInfoBackward,

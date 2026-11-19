@@ -2,7 +2,13 @@
 // THIS CODE IS NOT EXECUTED. IT IS JUST FOR TYPECHECKING
 // ************************************************************
 
-import { App, OAuthApp, Octokit, RequestError } from "../src/index.ts";
+import {
+  App,
+  GraphqlResponseError,
+  OAuthApp,
+  Octokit,
+  RequestError,
+} from "../src/index.ts";
 
 function expect<T>(what: T) {}
 
@@ -40,4 +46,27 @@ export async function OctokitTest() {
   });
 
   expect<RequestError>(error);
+
+  const graphqlError = new GraphqlResponseError(
+    {
+      method: "POST",
+      url: "/graphql",
+      query: "query { viewer { login } }",
+    },
+    {},
+    {
+      data: { login: "octocat" },
+      errors: [
+        {
+          type: "SERVICE_UNAVAILABLE",
+          message: "Service unavailable",
+          path: ["viewer"],
+          extensions: {},
+          locations: [{ line: 1, column: 1 }],
+        },
+      ],
+    },
+  );
+
+  expect<GraphqlResponseError<{ login: string }>>(graphqlError);
 }
