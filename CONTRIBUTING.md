@@ -34,6 +34,12 @@ Run the tests before making changes to make sure the local setup is working as e
 npm test
 ```
 
+The tests for importing `octokit` in Deno run separately, as they require [Deno](https://deno.com/) to be installed
+
+```shell
+npm run test:deno
+```
+
 ## Submitting the Pull Request
 
 - Create a new branch locally.

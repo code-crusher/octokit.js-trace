@@ -1,0 +1,6 @@
+{
+  "lock": false,
+  "test": {
+    "include": ["octokit.test.ts"]
+  }
+}
