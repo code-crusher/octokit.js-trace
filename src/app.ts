@@ -10,3 +10,13 @@ export const OAuthApp = DefaultOAuthApp.defaults({ Octokit });
 export type OAuthApp = InstanceType<typeof OAuthApp>;
 
 export { createNodeMiddleware } from "@octokit/app";
+export {
+  createWebWorkerHandler,
+  handleRequest,
+  unknownRouteResponse,
+} from "@octokit/oauth-app";
+export type {
+  HandlerOptions,
+  OctokitRequest,
+  OctokitResponse,
+} from "@octokit/oauth-app";

@@ -34,6 +34,7 @@ The `octokit` package integrates the three main Octokit libraries
     - [Webhooks](#webhooks)
     - [OAuth](#oauth)
     - [App Server](#app-server)
+    - [Web middleware (Deno, Cloudflare Workers, Bun, ...)](#web-middleware-deno-cloudflare-workers-bun-)
     - [OAuth for browser apps](#oauth-for-browser-apps)
   - [Action client](#action-client)
   - [LICENSE](#license)
@@ -919,6 +920,53 @@ expressApp.listen(3000, () => {
   console.log(`Example app listening at http://localhost:3000`);
 });
 ```
+
+### Web middleware (Deno, Cloudflare Workers, Bun, ...)
+
+`createNodeMiddleware()` relies on Node's `IncomingMessage`/`ServerResponse` APIs. Frameworks like [Deno Fresh](https://fresh.deno.dev/docs/concepts/middleware) or runtimes like [Cloudflare Workers](https://developers.cloudflare.com/workers/) instead pass the standard [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) `Request` to handlers and expect a `Response` in return. For these environments, use `createWebWorkerHandler()`, which exposes the same `/api/github/oauth/*` routes as `createNodeMiddleware()`:
+
+```js
+import { OAuthApp, createWebWorkerHandler } from "octokit";
+
+const app = new OAuthApp({
+  clientId,
+  clientSecret,
+});
+
+const handleRequest = createWebWorkerHandler(app, {
+  // the default is "/api/github/oauth"
+  pathPrefix: "/api/github/oauth",
+});
+```
+
+The handler returns `undefined` if the request does not match the `pathPrefix`, so a framework middleware can pass the request on to the next handler.
+
+Example: use the OAuth web flow in a [Deno Fresh](https://fresh.deno.dev) middleware (`routes/_middleware.ts`)
+
+```ts
+import { OAuthApp, createWebWorkerHandler } from "octokit";
+
+const app = new OAuthApp({
+  clientId: Deno.env.get("CLIENT_ID")!,
+  clientSecret: Deno.env.get("CLIENT_SECRET")!,
+});
+
+const handleOAuthRequest = createWebWorkerHandler(app);
+
+// requests to /api/github/oauth/login redirect to GitHub,
+// GitHub redirects back to /api/github/oauth/callback where the
+// "token.created" event is emitted
+app.on("token.created", async ({ token, octokit }) => {
+  // store the token in a session
+});
+
+export const handler = async (req: Request, ctx: MiddlewareHandlerContext) => {
+  const response = await handleOAuthRequest(req);
+  return response ?? ctx.next();
+};
+```
+
+For more control, use the exported `handleRequest(app, options, request)` function to build a custom middleware. It accepts an abstract `OctokitRequest` and returns an `OctokitResponse` if the request matched one of the predefined routes, see the [`@octokit/oauth-app` middleware documentation](https://github.com/octokit/oauth-app.js#build-custom-middlewares).
 
 ### OAuth for browser apps
 
